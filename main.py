@@ -56,8 +56,12 @@ class Game:
             y (int): The column index.
 
         Returns:
-            str | None: The symbol of the winner, 'draw'
-            in case of a draw, or None if the game continues.
+            str | None:
+            - If the move results in a win, returns the symbol of the
+              winner ('X' or 'O').
+            - If the move results in a draw, returns 'draw'.
+            - If the game continues, returns None.
+            - If the selected cell is already occupied, returns 'occupied'.
         """
         if self.board[x][y] == ' ' and not self.is_game_over:
             self.board[x][y] = self.current_player
@@ -73,7 +77,7 @@ class Game:
                 self.current_player = ('O' if self.current_player == 'X'
                                        else 'X')
                 return None
-        return None
+        return 'occupied'
 
     def get_board_display(self) -> str:
         """Get a string representation of the board.
@@ -131,9 +135,13 @@ async def handle_callback_query(callback_query: types.CallbackQuery) -> None:
         logger.info(f'Game ended for chat {chat_id}.')
         games.pop(chat_id, None)
     elif data == 'restart':
-        games[chat_id] = Game()  # Start a new game
+        games[chat_id] = Game()
         logger.info(f'New game started for chat {chat_id}.')
         await send_board(chat_id)
+    elif data == 'exit':
+        await bot.send_message(chat_id, 'Спасибо за игру! До свидания!')
+        logger.info(f'Game ended for chat {chat_id} by exiting.')
+        games.pop(chat_id, None)
     else:
         if chat_id in games:
             x, y = map(int, data.split(','))
@@ -143,9 +151,13 @@ async def handle_callback_query(callback_query: types.CallbackQuery) -> None:
             if result == 'draw':
                 await end_game(chat_id, 'Ничья!\nХотите сыграть заново?')
             elif result:
-                await end_game(
-                    chat_id,
-                    f'Игрок {result} выиграл!\nХотите сыграть заново?')
+                if result == 'occupied':
+                    await bot.send_message(
+                        chat_id, 'Эта клетка уже занята. Попробуйте другую.')
+                else:
+                    await end_game(
+                        chat_id,
+                        f'Игрок {result} выиграл!\nХотите сыграть заново?')
             else:
                 await send_board(chat_id)
         else:
